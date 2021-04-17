@@ -1,0 +1,252 @@
+/*
+ *********** Timer1_Program.c
+ *********** Author		    : Fadya Kamal , Heba Ramadan , Heba Tharwat
+ *********** Created on	    :  1 / 1 / 2021
+ *********** Version		:  1
+ */
+#include "Std_types.h"
+#include "Bit_math.h"
+#include "Timer1_Config.h"
+#include "Timer1_Private.h"
+
+void(*Pfun_OVF) (void);
+void(*Pfun_CMPA)(void);
+void(*Pfun_CMPB)(void);
+void(*Pfun_CAPT)(void);
+
+
+void Timer1_vidInit(void)
+{
+
+#if TIMER1_u8WFG_MODE == TIMER1_u8NORMAL_MODE
+	//Select Normal Mode
+	CLR_BIT(TCCR1A , WGM10);
+	CLR_BIT(TCCR1A , WGM11);
+	CLR_BIT(TCCR1B , WGM12);
+	CLR_BIT(TCCR1B , WGM13);
+
+	//PIE TOV Flag
+	SET_BIT(TIMSK  ,  TOIE1);
+	//PIE OVF , ICU
+	SET_BIT(TIMSK  , TICIE1);
+	//PIE OVF , OCR1A
+	SET_BIT(TIMSK  , OCIE1A);
+
+
+	//Select detect Falling edge
+	CLR_BIT(TCCR1B , ICES1);
+
+
+	//Initial TCNT1 Register
+	TCNT1 = TIMER1_u16PRELOAD;
+
+#elif TIMER1_u8WFG_MODE == TIMER1_u8INPUTCAPTURREMODE
+	//Select Normal Mode
+	CLR_BIT(TCCR1A , WGM10);
+	CLR_BIT(TCCR1A , WGM11);
+	CLR_BIT(TCCR1B , WGM12);
+	CLR_BIT(TCCR1B , WGM13);
+
+	//Select detect Rising edge
+	SET_BIT(TCCR1B , ICES1);
+
+	//PIE OVF , ICU
+	SET_BIT(TIMSK  , TICIE1);
+	SET_BIT(TIMSK  , TOIE1);
+
+
+#elif TIMER1_u8WFG_MODE == TIMER1_u8CTC_MODE_TOP_OCR1_OVMAX
+	CLR_BIT(TCCR1A , WGM10);
+	CLR_BIT(TCCR1A , WGM11);
+	SET_BIT(TCCR1B , WGM12);
+	CLR_BIT(TCCR1B , WGM13);
+
+
+#elif TIMER1_u8WFG_MODE == TIMER1_u8CTC_MODE_TOP_ICR1_OVMAX
+	CLR_BIT(TCCR1A , WGM10);
+	CLR_BIT(TCCR1A , WGM11);
+	SET_BIT(TCCR1B , WGM12);
+	SET_BIT(TCCR1B , WGM13);
+
+	ICR1 = TIMER1_u16INPUT_CAPTURE_VALUE;
+
+#elif TIMER1_u8WFG_MODE == TIMER1_u8FAST_PWM_MODE_TOP_OCR1_OVTOP
+	SET_BIT(TCCR1A , WGM10);
+	SET_BIT(TCCR1A , WGM11);
+	SET_BIT(TCCR1B , WGM12);
+	SET_BIT(TCCR1B , WGM13);
+
+#elif TIMER1_u8WFG_MODE == TIMER1_u8FAST_PWM_MODE_TOP_ICR1_OVTOP
+	CLR_BIT(TCCR1A , WGM10);
+	SET_BIT(TCCR1A , WGM11);
+	SET_BIT(TCCR1B , WGM12);
+	SET_BIT(TCCR1B , WGM13);
+
+	ICR1 = TIMER1_u16INPUT_CAPTURE_VALUE;
+
+#endif
+
+#if TIMER1_u8PRESCALLER_VALU   == TIMER1_u8FCPU_1
+	//Select No Pre_scalling
+	CLR_BIT(TCCR1B , 2);
+	CLR_BIT(TCCR1B , 1);
+	SET_BIT(TCCR1B , 0);
+#elif TIMER1_u8PRESCALLER_VALU == TIMER1_u8FCPU_8
+	//Select Pre_scaller with 8
+	CLR_BIT(TCCR1B , 2);
+	SET_BIT(TCCR1B , 1);
+	CLR_BIT(TCCR1B , 0);
+#elif TIMER1_u8PRESCALLER_VALU == TIMER1_u8FCPU_64
+	//Select Pre_scaller with 64
+	CLR_BIT(TCCR1B , 2);
+	SET_BIT(TCCR1B , 1);
+	SET_BIT(TCCR1B , 0);
+#elif TIMER1_u8PRESCALLER_VALU == TIMER1_u8FCPU_256
+	//Select Pre_scaller with 256
+	SET_BIT(TCCR1B , 2);
+	CLR_BIT(TCCR1B , 1);
+	CLR_BIT(TCCR1B , 0);
+#elif TIMER1_u8PRESCALLER_VALU == TIMER1_u8FCPU_1024
+	//Select Pre_scaller with 1024
+	SET_BIT(TCCR1B , 2);
+	CLR_BIT(TCCR1B , 1);
+	SET_BIT(TCCR1B , 0);
+#elif TIMER1_u8PRESCALLER_VALU == TIMER1_u8FCPU_EXTERNAL_CLK_FALLING
+	//Select External CLK on T0 (clock on falling edge)
+	TCCR1B = 6;
+#elif TIMER1_u8PRESCALLER_VALU == TIMER1_u8FCPU_EXTERNAL_CLK_RISING
+	//Select External CLK on T0 (clock on rising edge)
+	TCCR1B = 7;
+#endif
+
+#if TIMER1_u8CHANNELA_COM == TIMER1_u8OC1_DISCONNECTED
+	CLR_BIT(TCCR1A , COM1A0);
+	CLR_BIT(TCCR1A , COM1A1);
+	OCR1A = TIMER1_u16COMPARE_VALUE_CHANNELA;
+
+#elif TIMER1_u8CHANNELA_COM == TIMER1_u8TOGGLE_OC1_ON_CM
+	SET_BIT(TCCR1A , COM1A0);
+	CLR_BIT(TCCR1A , COM1A1);
+	OCR1A = TIMER1_u16COMPARE_VALUE_CHANNELA;
+
+
+#elif TIMER1_u8CHANNELA_COM == TIMER1_u8CLEAR_OC1_ON_CM_SET_ON_TOP
+	CLR_BIT(TCCR1A , COM1A0);
+	SET_BIT(TCCR1A , COM1A1);
+	OCR1A = TIMER1_u16COMPARE_VALUE_CHANNELA;
+
+#elif TIMER1_u8CHANNELA_COM == TIMER1_u8SET_OC1_ON_CM_CLEAR_ON_TOP
+	SET_BIT(TCCR1A , COM1A0);
+	SET_BIT(TCCR1A , COM1A1);
+	OCR1A = TIMER1_u16COMPARE_VALUE_CHANNELA;
+#endif
+
+
+#if TIMER1_u8CHANNELB_COM == TIMER1_u8OC1_DISCONNECTED
+	CLR_BIT(TCCR1B , COM1B0);
+	CLR_BIT(TCCR1B , COM1B1);
+	OCR1B = TIMER1_u16COMPARE_VALUE_CHANNELB;
+
+#elif TIMER1_u8CHANNELB_COM == TIMER1_u8TOGGLE_OC1_ON_CM
+	SET_BIT(TCCR1B , COM1B0);
+	CLR_BIT(TCCR1B , COM1B1);
+	OCR1B = TIMER1_u16COMPARE_VALUE_CHANNELB;
+
+
+#elif TIMER1_u8CHANNELB_COM == TIMER1_u8CLEAR_OC1_ON_CM_SET_ON_TOP
+	CLR_BIT(TCCR1B , COM1B0);
+	SET_BIT(TCCR1B , COM1B1);
+	OCR1B = TIMER1_u16COMPARE_VALUE_CHANNELB;
+
+#elif TIMER1_u8CHANNELB_COM == TIMER1_u8SET_OC1_ON_CM_CLEAR_ON_TOP
+	SET_BIT(TCCR1B , COM1B0);
+	SET_BIT(TCCR1B , COM1B1);
+	OCR1B = TIMER1_u16COMPARE_VALUE_CHANNELB;
+#endif
+
+}
+
+
+void GIE_vidEnable(void)
+{
+	SET_BIT(SREG ,7);
+}
+
+
+void GIE_vidDisable(void)
+{
+	CLR_BIT(SREG ,7);
+}
+
+
+void Timer1_vidSetTCNT1Value(u16 Value)
+{
+	TCNT1 = Value;
+}
+
+
+void Timer1_vidSetOCR1Value (u16 Value)
+{
+	OCR1A = Value;
+}
+
+
+u16  Timer1_u16GetTCNT1Value(void)
+{
+	return TCNT1 ;
+}
+
+
+u16  Timer1_u16GetICR1Value (void)
+{
+	return ICR1 ;
+}
+
+
+void Timer1_vidSetCallBackOVF(void(*pf)(void))
+{
+	Pfun_OVF = pf;
+}
+
+
+void Timer1_vidSetCallBackCMP_A(void(*pf)(void))
+{
+	Pfun_CMPA = pf;
+}
+
+
+void Timer1_vidSetCallBackCMP_B(void(*pf)(void))
+{
+	Pfun_CMPB = pf;
+}
+
+
+void Timer1_vidSetCallBackInputCAP(void(*pf)(void))
+{
+	Pfun_CAPT = pf;
+}
+
+
+void __vector_9 (void)
+{
+	Pfun_OVF();
+}
+
+
+void __vector_8 (void)
+{
+	Pfun_CMPB();
+}
+
+
+void __vector_7 (void)
+{
+	Pfun_CMPA();
+}
+
+
+void __vector_6 (void)
+{
+	Pfun_CAPT();
+}
+
